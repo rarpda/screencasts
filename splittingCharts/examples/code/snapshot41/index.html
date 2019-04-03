@@ -1,154 +1,288 @@
-<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>D3 Example</title>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/d3-legend/1.1.0/d3-legend.js"></script>
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
-        
-    <style>
 
-      .axis text {
-        font-family: 'Open Sans', sans-serif;
-        font-size: 12pt;
-      }
-      .axis .label {
-        font-size: 18pt;
-      }
+	<head>
+		<script src="https://d3js.org/d3.v5.js"></script>
 
-      .axis path, .axis line {
-        fill: none;
-        stroke: #000;
-        shape-rendering: crispEdges;
-      }
+	</head>
 
-    </style>
-  </head>
-  <body>
-    <script>
-    
-      var outerWidth = 500;
-      var outerHeight = 250;
-      var margin = { left: 55, top: 5, right: 100, bottom: 60 };
+<body>
 
-      var xColumn = "year";
-      var yColumn = "population";
-      var colorColumn = "country";
-      var areaColumn = colorColumn;
+        <h2>D3 Scales and Axes</h2>
 
-      var xAxisLabelText = "Time";
-      var xAxisLabelOffset = 48;
 
-      var yAxisLabelText = "Population";
-      var yAxisLabelOffset = 35;
+        <div id="my_dataviz"></div>
 
-      var innerWidth  = outerWidth  - margin.left - margin.right;
-      var innerHeight = outerHeight - margin.top  - margin.bottom;
+        <script>
+                // set the dimensions and margins of the graph
+                var margin = {top: 20, right: 30, bottom: 0, left: 10},
+                    width = 460 - margin.left - margin.right,
+                    height = 400 - margin.top - margin.bottom;
 
-      var svg = d3.select("body").append("svg")
-        .attr("width", outerWidth)
-        .attr("height", outerHeight);
-      var g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                // append the svg object to the body of the page
+                // var svg = d3.select("#my_dataviz")
+                //   .append("svg")
+                //     .attr("width", width + margin.left + margin.right)
+                //     .attr("height", height + margin.top + margin.bottom)
+                //   .append("g")
+                //     .attr("transform",
+                //           "translate(" + margin.left + "," + margin.top + ")");
 
-      var xAxisG = g.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + innerHeight + ")")
-      var xAxisLabel = xAxisG.append("text")
-        .style("text-anchor", "middle")
-        .attr("transform", "translate(" + (innerWidth / 2) + "," + xAxisLabelOffset + ")")
-        .attr("class", "label")
-        .text(xAxisLabelText);
+                // Parse the Data
+                var dataPath = "data/sipri-report-explosions.csv";
+                d3.csv(dataPath)
+				.then(function(data){
+                  // List of groups = header of the csv files
+                //   var keys = data.columns.slice(1)
+                    var myData = data;
 
-      var yAxisG = g.append("g")
-        .attr("class", "y axis");
-      var yAxisLabel = yAxisG.append("text")
-        .style("text-anchor", "middle")
-        .attr("transform", "translate(-" + yAxisLabelOffset + "," + (innerHeight / 2) + ") rotate(-90)")
-        .attr("class", "label")
-        .text(yAxisLabelText);
+                    var myKeys = [myData.columns[3], myData.columns[17]];
+                    console.log(myKeys);
+                    console.log(myData.columns)
 
-      var colorLegendG = svg.append("g")
-        .attr("class", "color-legend")
-        .attr("transform", "translate(403, 5)");
+                    var margin = 50;	//margins the left
+					var width = 700*1.5;	//width of the svg element (in pixels)
+					var height = 350*1.5;	//height of the svg element
 
-      var xScale = d3.time.scale().range([0, innerWidth]);
-      var yScale = d3.scale.linear().range([innerHeight, 0]);
-      var colorScale = d3.scale.category10();
 
-      // Use a modified SI formatter that uses "B" for Billion.
-      var siFormat = d3.format("s");
-      var customTickFormat = function (d){
-        return siFormat(d).replace("G", "B");
-      };
 
-      var xAxis = d3.svg.axis().scale(xScale).orient("bottom")
-        .ticks(5)
-        .outerTickSize(0);
-      var yAxis = d3.svg.axis().scale(yScale).orient("left")
-        .ticks(5)
-        .tickFormat(customTickFormat)
-        .outerTickSize(0);
+                    var countYearCountry = d3.nest()
+                                        .key(function(d){
+											return d.year;
+										})
+                                        .key(function(d){
+											return d.country;
+										})
+										.rollup(function(leaves){
+											return d3.sum(leaves, function(d){
+												return 1; // return 1 to count each occurence of an explosion per country
+											})
+										})
+										.entries(data);
+                    console.log(countYearCountry);
 
-      var stack = d3.layout.stack()
-        .y(function (d){ return d[yColumn]; })
-        .values(function (d){ return d.values; });
 
-      var area = d3.svg.area()
-        .x(function(d) { return xScale(d[xColumn]); })
-        .y0(function(d) { return yScale(d.y0); })
-        .y1(function(d) { return yScale(d.y0 + d.y); });
-        
-      var colorLegend = d3.legend.color()
-        .scale(colorScale)
-        .shapePadding(3)
-        .shapeWidth(15)
-        .shapeHeight(15)
-        .labelOffset(4);
+                    var extent_year = d3.extent(myData, function(d){
+							return parseInt(d.year);
+					})
+                    //console.log(extent_year);
 
-      function render(data){
+                    var countYearTot = d3.nest()
+										.key(function(d){
+											return d.year;
+										})
+										.rollup(function(leaves){
+											return d3.sum(leaves, function(d){
+												return 1;
+											})
+										})
+										.entries(data);
+                    // console.log(countYearTot);
 
-        var nested = d3.nest()
-          .key(function (d){ return d[areaColumn]; })
-          .entries(data);
 
-        colorScale.domain(nested.map(function (d){ return d.key; }));
+                    var extent_count = d3.extent(countYearTot, function(d){
+											return parseFloat(d.value);
+					})
 
-        // Reversed the order here so the order matches between legend & areas.
-        var layers = stack(nested.reverse());
+                    console.log(extent_count);
 
-        xScale.domain(d3.extent(data, function (d){ return d[xColumn]; }));
-        yScale.domain([
-          0,
-          d3.max(layers, function (layer){
-            return d3.max(layer.values, function (d){
-              return d.y0 + d.y;
-            });
-          })
-        ]);
 
-        var paths = g.selectAll(".chart-area").data(layers);
-        paths.enter().append("path").attr("class", "chart-line");
-        paths.exit().remove();
-        paths
-          .attr("d", function (d){ return area(d.values); })
-          .attr("fill", function (d){ return colorScale(d.key); });
+                    // calculate scales
+					var x_scale = d3.scaleLinear()
+									.range([margin, width-margin])
+									.domain([extent_year[0], extent_year[1]])
 
-        xAxisG.call(xAxis);
-        yAxisG.call(yAxis);
 
-        colorLegendG.call(colorLegend);
-      }
+					var y_scale = d3.scaleLinear()
+									.range([height-margin, margin])
+									.domain([extent_count[0], extent_count[1]]) // from 0 to the max
 
-      function type(d){
-        d.year = new Date(d.year);
-        d.population = +d.population;
-        return d;
-      }
+					// implement axes
+					var x_axis = d3.axisBottom(x_scale);
+					var y_axis = d3.axisLeft(y_scale);
 
-      d3.csv("populationByCountryByYear.csv", type, render);
 
-    </script>
-  </body>
-</html>
+                    var stackarea_SVG = d3.select("body")				//select the "body" of html document
+											.append("svg")				//add an svg element
+											.attr("width", width)		//specifiy width and height of svg element
+											.attr("height", height);
+
+					d3.select("svg")
+						.append("g")
+							.attr("class", "x-axis")
+							.attr("transform", "translate(0," + (height-margin) + ")")
+							.call(x_axis);
+
+					d3.select("svg")
+						.append("g")
+							.attr("class", "y-axis")
+							.attr("transform", "translate(" + margin + ",0)")
+							.call(y_axis);
+
+					d3.select(".x-axis")
+						.append("text")
+							.text("Years")
+							.style("fill", "black")
+							.attr("x", (width-margin)/2)
+							.attr("y", margin);
+
+					d3.select(".y-axis")
+						.append("text")
+							.text("Explosion Coint (something units)")
+							.style("fill", "black")
+                            .attr("transform", "rotate(-90,0," + (margin-10) + ") translate(" + ((margin-height)/3) + ",0)");
+
+                  // var color = d3.scaleOrdinal()
+                  //   .domain(countYearCountry);
+                // var keys = [0,1,2,3,4,5,6];
+                var keys = ["USA","USSR","UK","FRANCE","CHINA","INDIA","PAKIST"];
+
+                    var stackedData = d3.stack()
+                        //.keys(["0", "1", "2", "3", "4", "5", "6"])
+                        // .keys(["0", "1", "2", "3", "4", "5", "6"])
+                        .keys(["USA","USSR","UK","FRANCE","CHINA","INDIA","PAKIST"])
+                        // .keys(keys)
+                        .value((d, key) => {
+														// console.log(d);
+														// var keyIndex = d.values
+														// console.log(d.enter());
+													var test =	d.values.findIndex(
+															function(d){
+																// console.log(d.key)
+																// console.log(key)
+
+																return d.key === key;
+															});
+
+														if(test >= 0){
+															// console.log(d.values[test].value)
+															 return d.values[test].value;
+														}
+														else{
+															return 0;
+														}
+
+															// exists(key));
+														// var count = 0;
+														})
+														// return key === d.values.length ? d.values[key].value : 0;
+
+                            // return key === d.values.length ? d.values[key].value : 0;
+                        // })
+                        (countYearCountry)
+                    console.log(stackedData);
+
+										function exists(element,key2){
+												console.log(element.key === key2);
+										};
+
+										var color = d3.scaleOrdinal().domain(keys).range(["#A07A19", "#AC30C0", "#EB9A72", "#BA86F5", "#EA22A8","#EA0000","#BA0FF0"]);
+
+                    // var color = d3.scaleOrdinal()
+                    //   .domain(keys)
+										// 	 .range([0, 100]);
+                  // .range(d3.schemeSet2);
+
+                    // Area generator
+                    var area = d3.area()
+                        .x(function(d) {
+                            return x_scale(parseInt(d.data.key)); })
+                        .y0(function(d) {
+                           return y_scale(d[0]); })
+                        .y1(function(d) {
+                          return y_scale(d[1]); })
+
+                var stacks= d3.stack()
+                        .keys(keys)
+                        .value((d, key) => {
+                        return key < d.values.length ? d.values[key].value : 0;
+                        })(countYearCountry)
+
+                        stackarea_SVG
+                        .selectAll("mylayers")
+                        .data(stackedData).enter()
+                        .append("path")
+                          .attr("class", function(d) {
+                            return "myArea " + d.key }
+                          )
+                          .style("fill", function(d) {
+                            return color(d.key); })
+                          .attr("d", area)
+
+                        // .selectAll("path")
+                        // .data(function(d) {
+                        //     //console.log("helllo");
+                        //     console.log(d);
+                        //     return d;})
+                        // // .enter()
+                        // .append("path")
+                        //   .attr("class", function(d) { return "myArea " + d.data.key })
+                        //    //.style("fill", function(d) { return color(d.key); })
+                        //     .style("fill", function(d) { return "black"; })
+                        //   .attr("d", area);
+
+                        // What to do when one group is hovered
+                                 var highlight = function(d){
+                                   // reduce opacity of all groups
+                                   d3.selectAll(".myArea").style("opacity", .1);
+                                   // expect the one that is hovered
+                                   console.log(".myArea " + d);
+                                   console.log( d3.select("." + d));
+                                   d3.select("." + d).style("opacity", 1);
+                                 }
+
+                                 var size = 20
+                                 // And when it is not hovered anymore
+                                             var noHighlight = function(d){
+                                               d3.selectAll(".myArea").style("opacity", 1);
+                                             }
+
+                                             console.log(width/2 + size*1.2);
+
+                        stackarea_SVG.selectAll("mylabels")
+                                  .data(keys)
+                                  .enter()
+                                  .append("text")
+                                    .attr("x", width/2 + size*1.2)
+                                    .attr("y", function(d,i){ return 10 + i*(size+5) + (size/2)}) // 100 is where the first dot appears. 25 is the distance between dots
+                                    .style("fill", function(d){ return color(d)})
+                                    .text(function(d){ return d})
+                                    .attr("text-anchor", "left")
+                                    .style("alignment-baseline", "middle")
+                                    .on("mouseover", highlight)
+                                    .on("mouseleave", noHighlight)
+
+// data sorta correct
+                    // stackarea_SVG
+                    // .selectAll("mylayers")
+                    // .data(stackedData).enter()
+                    // .selectAll("path")
+                    // .data(function(d) {
+                    //     //console.log("helllo");
+                    //     console.log(d);
+                    //     return d;})
+                    // // .enter()
+                    // .append("path")
+                    //   .attr("class", function(d) { return "myArea " + d.data.key })
+                    //    //.style("fill", function(d) { return color(d.key); })
+                    //     .style("fill", function(d) { return "black"; })
+                    //   .attr("d", area);
+                        // .attr("x", function(d) {
+                        //     //console.log(count);
+                        //     //console.log(d);
+                        //     //console.log(d.data.key);
+                        //     return x_scale(parseInt(d.data.key)); })
+                        // .attr("y0", function(d) {
+                        //     console.log(stackarea_SVG);
+                        //     console.log(d[0])
+                        //     return y_scale(d[0]); })
+                        // .attr("y1", function(d) {
+
+                            // return y_scale(d[1]);});
+
+
+                })
+                </script>
+
+            	</body>
+
+            </html>
